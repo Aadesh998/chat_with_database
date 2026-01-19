@@ -26,7 +26,7 @@ func GetDBConfig() views.DBConfig {
 func GetDSN() string {
 	cfg := GetDBConfig()
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s search_path=%s sslmode=require TimeZone=Asia/Kolkata",
+		"host=%s user=%s password=%s dbname=%s port=%s search_path=%s TimeZone=Asia/Kolkata",
 		cfg.Host, cfg.User, cfg.Password, cfg.Name, cfg.Port, cfg.Schema,
 	)
 	return dsn

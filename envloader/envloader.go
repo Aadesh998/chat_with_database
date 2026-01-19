@@ -11,7 +11,7 @@ import (
 var AppConfig *views.Config
 
 func LoadConfig() {
-	env := "developement"
+	env := "development"
 	envFile := ".env." + env
 
 	log.Println(envFile)
@@ -31,12 +31,13 @@ func LoadConfig() {
 	}
 
 	AppConfig = &views.Config{
-		Version:    os.Getenv("VERSION"),
-		DBUser:     os.Getenv("DB_USER"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBHost:     os.Getenv("DB_HOST"),
-		DBPort:     os.Getenv("DB_PORT"),
-		DBName:     os.Getenv("DB_NAME"),
-		DBSchema:   os.Getenv("DB_SCHEMA"),
+		Version:      os.Getenv("VERSION"),
+		DBUser:       os.Getenv("DB_USER"),
+		DBPassword:   os.Getenv("DB_PASSWORD"),
+		DBHost:       os.Getenv("DB_HOST"),
+		DBPort:       os.Getenv("DB_PORT"),
+		DBName:       os.Getenv("DB_NAME"),
+		DBSchema:     os.Getenv("DB_SCHEMA"),
+		OpenAIAPIKey: os.Getenv("OPENAI_APIKEY"),
 	}
 }
