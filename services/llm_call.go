@@ -16,29 +16,22 @@ import (
 func LLMCall(schema, userQuery string) (string, error) {
 	fmt.Println("LLM Calling Service")
 
-	prompt := utils.GetSQLPrompt(schema, userQuery)
+	client := openai.NewClient(option.WithAPIKey(envloader.AppConfig.OpenAIAPIKey))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	client := openai.NewClient(
-		option.WithAPIKey(envloader.AppConfig.OpenAIAPIKey),
-	)
-
-	response, err := client.Chat.Completions.New(
-		ctx,
-		openai.ChatCompletionNewParams{
-			Model: openai.ChatModelGPT4o,
-			Messages: []openai.ChatCompletionMessageParamUnion{
-				openai.SystemMessage(
-					"You generate only valid SQL queries. No explanations. No markdown.",
-				),
-				openai.UserMessage(prompt),
-			},
-			Temperature: openai.Float(0),
-			MaxTokens:   openai.Int(300),
+	response, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+		Model: openai.ChatModelGPT4o,
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.SystemMessage(
+				"You are an expert SQL generator. Use the following schema to generate ONLY valid Postgres SQL. " +
+					"No explanations, no markdown. Schema:\n" + schema,
+			),
+			openai.UserMessage(userQuery),
 		},
-	)
+		Temperature: openai.Float(0),
+	})
 
 	if err != nil {
 		log.Printf("LLM call failed: %v", err)

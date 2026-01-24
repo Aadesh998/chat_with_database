@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/Aadesh-lab/views"
 )
 
 func ExcecuteSQL(db *sql.DB, query string) bool {
@@ -60,4 +62,50 @@ func ExcecuteSQL(db *sql.DB, query string) bool {
 	fmt.Printf("Last Insert ID: %d, Rows Affected: %d\n", lastInsertID, rowsAffected)
 
 	return true
+}
+
+func ExecuteForUI(db *sql.DB, query string) (*views.QueryResult, error) {
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	cols, _ := rows.Columns()
+	var resultRows []map[string]interface{}
+
+	for rows.Next() {
+		columns := make([]interface{}, len(cols))
+		columnPointers := make([]interface{}, len(cols))
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		if err := rows.Scan(columnPointers...); err != nil {
+			continue
+		}
+
+		rowMap := make(map[string]interface{})
+		for i, colName := range cols {
+			val := columns[i]
+			if b, ok := val.([]byte); ok {
+				rowMap[colName] = string(b)
+			} else {
+				rowMap[colName] = val
+			}
+		}
+		resultRows = append(resultRows, rowMap)
+	}
+
+	viz := "TABLE"
+	if len(cols) == 2 && len(resultRows) > 0 {
+		viz = "PIE_CHART"
+	}
+
+	return &views.QueryResult{
+		SQL:           query,
+		Columns:       cols,
+		Rows:          resultRows,
+		Visualization: viz,
+	}, nil
 }

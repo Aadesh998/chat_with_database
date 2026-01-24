@@ -1,17 +1,57 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
 	"log"
-	"os"
-	"strings"
+	"net/http"
 
 	"github.com/Aadesh-lab/db"
 	dbfunction "github.com/Aadesh-lab/db_function"
 	"github.com/Aadesh-lab/envloader"
 	"github.com/Aadesh-lab/services"
+	"github.com/Aadesh-lab/views"
+	"github.com/gorilla/websocket"
 )
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+func handleWebSocket(w http.ResponseWriter, r *http.Request, schemaStr string) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("Upgrade error: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	sqlDB, _ := db.DB.DB()
+
+	for {
+		var msg map[string]string
+		if err := conn.ReadJSON(&msg); err != nil {
+			log.Printf("Read error: %v", err)
+			break
+		}
+
+		userQuery := msg["query"]
+
+		sqlQuery, err := services.LLMCall(schemaStr, userQuery)
+		if err != nil {
+			conn.WriteJSON(views.WSResponse{Type: "ERROR", Payload: err.Error()})
+			continue
+		}
+
+		conn.WriteJSON(views.WSResponse{Type: "SQL", Payload: sqlQuery})
+
+		data, err := services.ExecuteForUI(sqlDB, sqlQuery)
+		if err != nil {
+			conn.WriteJSON(views.WSResponse{Type: "ERROR", Payload: err.Error()})
+			continue
+		}
+
+		conn.WriteJSON(views.WSResponse{Type: "DATA", Payload: data})
+	}
+}
 
 func main() {
 	envloader.LoadConfig()
@@ -27,30 +67,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
+	schemaStr := dbfunction.SchemaToString(schema)
 
-	for {
-		fmt.Print("Enter your query: ")
-		userQuery, _ := reader.ReadString('\n')
-		userQuery = strings.TrimSpace(userQuery)
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		handleWebSocket(w, r, schemaStr)
+	})
 
-		if userQuery == "exit" {
-			break
-		}
-
-		schemaString := dbfunction.SchemaToString(schema)
-		sqlQuery, err := services.LLMCall(schemaString, userQuery)
-		if err != nil {
-			log.Printf("Error getting SQL from LLM: %v", err)
-			continue
-		}
-		if services.ExcecuteSQL(sqlDB, sqlQuery) {
-			fmt.Println("Query executed successfully")
-
-		} else {
-			fmt.Println("Failed to execute query")
-		}
-
-	}
-
+	log.Println("Server started on :http://localhost:3900/")
+	log.Fatal(http.ListenAndServe(":3900", nil))
 }
